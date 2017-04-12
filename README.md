@@ -131,15 +131,15 @@ Each distance corresponds to a distance type. The type name and the correspondin
 |  Cityblock           |  `cityblock(x, y)`         | `sum(abs(x - y))` |
 |  Chebyshev           |  `chebyshev(x, y)`         | `max(abs(x - y))` |
 |  Minkowski           |  `minkowski(x, y, p)`      | `sum(abs(x - y).^p) ^ (1/p)` |
-|  Hamming             |  `hamming(x, y)`           | `sum(x .!= y)` |
-|  Rogers-Tanimoto     |  `rogerstanimoto(x, y)`    | `2(sum(x&!y) + sum(!x&y)) / (2(sum(x&!y) + sum(!x&y)) + sum(x&y) + sum(!x&!y))` |
+|  Hamming             |  `hamming(k, l)`           | `sum(k .!= l)` |
+|  Rogers-Tanimoto     |  `rogerstanimoto(a, b)`    | `2(sum(a&!b) + sum(!a&b)) / (2(sum(a&!b) + sum(!a&b)) + sum(a&b) + sum(!a&!b))` |
 |  Jaccard             |  `jaccard(x, y)`           | `1 - sum(min(x, y)) / sum(max(x, y))` |
 |  CosineDist          |  `cosine_dist(x, y)`       | `1 - dot(x, y) / (norm(x) * norm(y))` |
 |  CorrDist            |  `corr_dist(x, y)`         | `cosine_dist(x - mean(x), y - mean(y))` |
 |  ChiSqDist           |  `chisq_dist(x, y)`        | `sum((x - y).^2 / (x + y))` |
-|  KLDivergence        |  `kl_divergence(x, y)`     | `sum(p .* log(p ./ q))` |
-|  RenyiDivergence     | `renyi_divergence(x, y, k)`| `log(sum( x .* (x ./ y) .^ (k - 1))) / (k - 1)` |
-|  JSDivergence        |  `js_divergence(x, y)`     | `KL(x, m) / 2 + KL(y, m) / 2 with m = (x + y) / 2` |
+|  KLDivergence        |  `kl_divergence(p, q)`     | `sum(p .* log(p ./ q))` |
+|  RenyiDivergence     | `renyi_divergence(p, q, k)`| `log(sum( p .* (p ./ q) .^ (k - 1))) / (k - 1)` |
+|  JSDivergence        |  `js_divergence(p, q)`     | `KL(p, m) / 2 + KL(p, m) / 2 with m = (p + q) / 2` |
 |  SpanNormDist        |  `spannorm_dist(x, y)`     | `max(x - y) - min(x - y )` |
 |  BhattacharyyaDist   |  `bhattacharyya(x, y)`     | `-log(sum(sqrt(x .* y) / sqrt(sum(x) * sum(y)))` |
 |  HellingerDist       |  `hellinger(x, y) `        | `sqrt(1 - sum(sqrt(x .* y) / sqrt(sum(x) * sum(y))))` |
@@ -151,7 +151,7 @@ Each distance corresponds to a distance type. The type name and the correspondin
 |  WeightedMinkowski   |  `wminkowski(x, y, w, p)`  | `sum(abs(x - y).^p .* w) ^ (1/p)` |
 |  WeightedHamming     |  `whamming(x, y, w)`       | `sum((x .!= y) .* w)`  |
 
-**Note:** The formulas above are using *Julia*'s functions. These formulas are mainly for conveying the math concepts in a concise way. The actual implementation may use a faster way.
+**Note:** The formulas above are using *Julia*'s functions. These formulas are mainly for conveying the math concepts in a concise way. The actual implementation may use a faster way. The arguments `x` and `y` are arrays of real numbers; `k` and `l` are arrays of distinct elements of any kind; a and b are arrays of Bools; and finally, `p` and `q` are arrays forming a discrete probability distribution and are therefore both expected to sum to one.
 
 ### Precision for Euclidean and SqEuclidean
 
@@ -185,7 +185,7 @@ julia> pairwise(Euclidean(1e-12), x, x)
 
 The implementation has been carefully optimized based on benchmarks. The Julia scripts ``test/bench_colwise.jl`` and ``test/bench_pairwise.jl`` run the benchmarks on a variety of distances, respectively under column-wise and pairwise settings.
 
-Here are benchmarks obtained on Linux with Intel Core i7-4770K 3.5 GHz.
+Here are benchmarks obtained running Julia 0.6 on a quad-core Intel i7-4770K @ 3.50GHz
 
 #### Column-wise benchmark
 
@@ -214,7 +214,7 @@ The table below compares the performance (measured in terms of average elapsed t
 | SqMahalanobis | 0.292282s |  0.027933s | 10.4638 |
 | Mahalanobis | 0.260338s |  0.028941s |  8.9953 |
 
-We can see that using ``colwise`` instead of a simple loop yields considerable gain (2x - 6x), especially when the internal computation of each distance is simple. Nonetheless, when the computaton of a single distance is heavy enough (e.g. *Minkowski* and *JSDivergence*), the gain is not as significant.
+We can see that using ``colwise`` instead of a simple loop yields considerable gain (up to 10x), especially when the internal computation of each distance is simple. Nonetheless, when the computaton of a single distance is heavy enough (e.g. *Minkowski* and *JSDivergence*), the gain is not as significant.
 
 #### Pairwise benchmark
 
@@ -243,4 +243,4 @@ The table below compares the performance (measured in terms of average elapsed t
 | SqMahalanobis | 0.511543s |  0.000493s | **1036.6184** |
 | Mahalanobis | 0.568797s |  0.000685s | **830.0260** |
 
-For distances of which a major part of the computation is a quadratic form (e.g. *Euclidean*, *CosineDist*, *Mahalanobis*), the performance can be drastically improved by restructuring the computation and delegating the core part to ``GEMM`` in *BLAS*. The use of this strategy can easily lead to 100x performance gain over simple loops (see the highlighted part of the table above).
+For distances of which a major part of the computation is a quadratic form (e.g. *Euclidean*, *CosineDist*, *Mahalanobis*), the performance can be drastically improved by restructuring the computation and delegating the core part to ``GEMM`` in *BLAS*. The use of this strategy can easily lead to 1000x performance gain over simple loops (see the highlighted part of the table above).
